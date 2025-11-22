@@ -1,0 +1,11 @@
+ADD, $t9, $t6, $t7
+MULT, $t7, $t9, $t6
+MULT, $t7, $t2, $t2
+MULT, $t7, $t2, $t2
+BEQ, 2, $t9, $t0
+LD, $t0, 0, $t2
+SW, $t0, 0, $t3
+ADD, $t1, $t1, $t1
+ADD, $t2, $t2, $t1
+MULT, $t2, $t4, $t3
+end
