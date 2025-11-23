@@ -1,6 +1,6 @@
 class Instrucao:
     
-    def __init__(self, nome, i, j, k, issue, exec_completa, write_result, commit,tipo, posi, status, value, podeExecutar, previsao):
+    def __init__(self, nome, i, j, k, issue, exec_completa, write_result, commit,tipo, posi, status, value, podeExecutar, previsao, rename):
         self.nome = nome
         self.i = i
         self.j = j
@@ -15,6 +15,7 @@ class Instrucao:
         self.value = value
         self.podeExecutar = podeExecutar
         self.previsao = previsao
+        self.rename = rename
 
     def __str__(self):
         return (f"Instrução: {self.nome}, i: {self.i}, j: {self.j}, k: {self.k}, "
@@ -81,6 +82,41 @@ class Memory:
             regs = regs.replace("$", "").replace("t", "")
             p = int(regs)
             self.Reg[p] = value
+
+class Rename:
+    Renome = []
+    def __init__(self):
+
+        # rename - Rgs - Value
+        self.Renome = [
+        ["Ra", -1, -1],
+        ["Rb", -1, -1],
+        ["Rc", -1, -1],
+        ["Rd", -1, -1],
+        ["Re", -1, -1],
+        ["Rf", -1, -1]
+        ]
+    def set(self, r1):
+        for r in self.Renome:
+            if r[1] == -1:
+                r[1] = r1
+                #r[2] = r1.getR(r1)
+                return r[0]
+            
+    def setValue(self, re, value):
+        for r in self.Renome:
+            if r[0] == re:
+                r[2] = value
+            
+    def clear(self, re):
+        for r in self.Renome:
+            if r[0] == re:
+                r[1] = -1
+                r[2] = -1
+    def value(self, re):
+        for r in self.Renome:
+            if r[0] == re:
+                return r[2]
 
 
 class Tomasulo:
@@ -156,58 +192,67 @@ class Tomasulo:
                 status= "none",
                 value= "null",
                 podeExecutar = True,
-                previsao = -1
+                previsao = -1,
+                rename = nome
             )
             y = y + 1
             instrucoes_decodificadas.append(instrucao)
             
         return instrucoes_decodificadas
     
-    def despacho(self, instrucoes, ufs, erALU, erMULT,erMEM, erBR):
+    def despacho(self, instrucoes, ufs, erALU, erMULT,erMEM, erBR, renomeado):
         for u in ufs:  
             
-            if u.Ocupado == False and u.nome == "ALU" and len(erALU) > 0 and self.sem_dependencias(instrucoes, erALU[0]):
+            if u.Ocupado == False and u.nome == "ALU" and len(erALU) > 0:
                 saida = False
                 
                 for y in range(len(erALU)):
                     if not saida:
-                        if erALU[y].podeExecutar and u.Ocupado == False:
+                        if erALU[y].podeExecutar and u.Ocupado == False and self.sem_dependencias(instrucoes, erALU[y]):
+                            if not self.sem_falsa_dependencia(instrucoes, erALU[y]) and erALU[y].exec_completa == -1:
+                                erALU[y].rename = renomeado.set(erALU[y])
                             u.instrucao = erALU.pop(y)
                             u.Ocupado = True
                             u.vida = 0
                             u.instrucao.status = "UF"
                             saida = True
 
-            if u.Ocupado == False and u.nome == "MULT" and len(erMULT) > 0 and self.sem_dependencias(instrucoes, erMULT[0]):
+            if u.Ocupado == False and u.nome == "MULT" and len(erMULT) > 0:
                 saida = False
                 
                 for y in range(len(erMULT)):
                     if not saida:
-                        if erMULT[y].podeExecutar and u.Ocupado == False:
+                        if erMULT[y].podeExecutar and u.Ocupado == False and self.sem_dependencias(instrucoes, erMULT[0]):
+                            if not self.sem_falsa_dependencia(instrucoes, erMULT[y]) and erMULT[y].exec_completa == -1:
+                                erMULT[y].rename = renomeado.set(erMULT[y])
                             u.instrucao = erMULT.pop(y)
                             u.Ocupado = True
                             u.vida = 0
                             u.instrucao.status = "UF"
                             saida = True
 
-            if u.Ocupado == False and u.nome == "MEM" and len(erMEM) > 0 and self.sem_dependencias(instrucoes, erMEM[0]):
+            if u.Ocupado == False and u.nome == "MEM" and len(erMEM) > 0:
                 saida = False
                 
                 for y in range(len(erMEM)):
                     if not saida:
-                        if erMEM[y].podeExecutar and u.Ocupado == False:
+                        if erMEM[y].podeExecutar and u.Ocupado == False and self.sem_dependencias(instrucoes, erMEM[0]):
+                            if not self.sem_falsa_dependencia(instrucoes, erMEM[y]) and erMEM[y].exec_completa == -1:
+                                erMEM[y].rename = renomeado.set(erMEM[y])
                             u.instrucao = erMEM.pop(y)
                             u.Ocupado = True
                             u.vida = 0
                             u.instrucao.status = "UF"
                             saida = True
 
-            if u.Ocupado == False and u.nome == "BR" and len(erBR) > 0 and self.sem_dependencias(instrucoes, erBR[0]):
+            if u.Ocupado == False and u.nome == "BR" and len(erBR) > 0:
                 saida = False
                 
                 for y in range(len(erBR)):
                     if not saida:
-                        if erBR[y].podeExecutar and u.Ocupado == False:
+                        if erBR[y].podeExecutar and u.Ocupado == False and self.sem_dependencias(instrucoes, erBR[0]):
+                            if not self.sem_falsa_dependencia(instrucoes, erBR[y]) and erBR[y].exec_completa == -1:
+                                erBR[y].rename = renomeado.set(erBR[y])
                             u.instrucao = erBR.pop(y)
                             u.Ocupado = True
                             u.vida = 0
@@ -215,7 +260,7 @@ class Tomasulo:
                             saida = True
           
     def atualiza_clock(self, ufs, clock):
-        tmpInst = Instrucao(0,0,0,0,0,0,0,0,0,0,0,0,0,0)
+        tmpInst = Instrucao(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)
         for u in ufs:
             if u.Ocupado == True and u.instrucao.exec_completa == -1:
                 if u.tempo == u.vida:
@@ -244,11 +289,15 @@ class Tomasulo:
                 print(instr.nome)
                 print("Write Result")
                 
-    def atualizar_inst(self, instrucoes, clock, m, pc, previsao):
+    def atualizar_inst(self, instrucoes, clock, m, renomeado, previsao):
         for instr in instrucoes:
             if instr.write_result > -1 and instr.commit == -1 and self.verifica_desvio(instr.posi, instrucoes) and instr.podeExecutar == True:
                 instr.commit = clock
                 instr.status = "commit"
+                if instr.rename != instr.nome:
+                    renomeado.clear(instr.rename)
+                    instr.rename = instr.nome
+
                 if instr.nome == "ADD":
                     m.setR(instr.i, (m.getR(instr.j) + m.getR(instr.k)))
                 if instr.nome == "SUB":
@@ -311,35 +360,20 @@ class Tomasulo:
                             instrucoes[y].exec_completa = -1 
                             instrucoes[y].write_result = -1 
                             instrucoes[y].commit = -1
-                        '''
-                    if (m.getR(instr.j) != m.getR(instr.k)):
-                        for y in range(pc[0]+1, pc[0]+int(instr.i)):
-                            instrucoes[y].podeExecutar = False
-                            instrucoes[y].status = "nop"
-                        #pc[0] + int(instr.i)'''
-            '''        
-    def imprimir_tabela(self, instrucoes):
-        print(f"{'Nome':<8} {'i':<3} {'j':<3} {'k':<3} {'Issue':<6} {'Exec':<6} {'Write':<6} {'Commit':<6}  {'Tipo':<6} {'Posi':<4} {'status':<12}")
-        print("-" * 60)
 
-        for inst in instrucoes:
-            print(f"{inst.nome:<8} {inst.i:<3} {inst.j:<3} {inst.k:<3} "
-                f"{inst.issue:<6} {inst.exec_completa:<6} {inst.write_result:<6} {inst.commit:<6} "
-                f"{inst.tipo:<6} {inst.posi:<4} {inst.status:<12}")
-            '''
     def imprimir_tabela(self, instrucoes):
         print(f"{'Nome':<12} {'i':<3} {'j':<3} {'k':<3} "
             f"{'Issue':<10} {'Exec':<6} {'Write':<7} {'Commit':<10} "
             f"{'Tipo':<8} {'Posi':<5} {'Status':<12} {'Value':<8} "
-            f"{'PodeExec':<10} {'Previsao':<12}")
+            f"{'PodeExec':<10} {'Previsao':<12} {'Rename':<10}")
 
-        print("-" * 120)
+        print("-" * 135)
 
         for inst in instrucoes:
             print(f"{inst.nome:<12} {inst.i:<3} {inst.j:<3} {inst.k:<3} "
                 f"{inst.issue:<10} {str(inst.exec_completa):<6} {str(inst.write_result):<7} {str(inst.commit):<10} "
                 f"{inst.tipo:<8} {inst.posi:<5} {inst.status:<12} {str(inst.value):<8} "
-                f"{str(inst.podeExecutar):<10} {str(inst.previsao):<12}")
+                f"{str(inst.podeExecutar):<10} {str(inst.previsao):<12} {str(inst.rename):<10}")
 
 
     def sem_dependencias(self, instrucoes, instruc):#, i, j, k, posi):
@@ -352,6 +386,17 @@ class Tomasulo:
         print("sem dependencia")
         return True
         
+    def sem_falsa_dependencia(self, instrucoes, instruc):
+        print("---------------------------------------")
+        for i in range(instruc.posi):
+            #print(instrucoes[i].nome + instrucoes[i].i +" -- " + instruc.nome +" " + instruc.j + " " + instruc.k)
+            if ((instruc.i == instrucoes[i].j or instruc.i == instrucoes[i].k) and instrucoes[i].exec_completa == -1):
+            #if ((instruc.j == instrucoes[i].i or instruc.k == instrucoes[i].i )and instrucoes[i].exec_completa == -1): # verifica dependencia verdadeira
+                print("FALSE _ DEPENDECIA")
+                return False
+        print("sem falsa dependencia")
+        return True
+
     def especulacao(self, posi, instrucoes, previsao, pc):
         if instrucoes[posi].tipo == "BR":
             
@@ -397,7 +442,11 @@ class Tomasulo:
         pc.append(0)
 
         previsao = []
-        previsao.append(1)
+        previsao.append(0)
+
+        # Registrador de renomeacao
+        renomeado = Rename()
+        renomeado.__init__()
 
         caminho = './instruct.luix'
         conteudo = self.ler_arquivo(caminho)
@@ -415,7 +464,7 @@ class Tomasulo:
 
         # unidades funcionais
         ufs = [] 
-        tmpInst = Instrucao(0,0,0,0,0,0,0,0,0,0,0,0,0,0) # TMP apenas para formato
+        tmpInst = Instrucao(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0) # TMP apenas para formato
 
         ufALU_1 = Unidades_Funcionais('ALU', 2 -1, tmpInst, False, 0)
         #ufALU_1._start_("ALU", 2, False)
@@ -461,9 +510,9 @@ class Tomasulo:
         
             
             self.WR(instrucoes, clock, previsao, m, pc)
-            self.atualizar_inst(instrucoes, clock, m, pc, previsao)
+            self.atualizar_inst(instrucoes, clock, m, renomeado, previsao)
             
-            self.despacho(instrucoes, ufs, erALU, erMULT,erMEM, erBR)
+            self.despacho(instrucoes, ufs, erALU, erMULT,erMEM, erBR, renomeado)
             self.atualiza_clock(ufs, clock)
             
 
@@ -483,7 +532,7 @@ t.simulador()
 
 '''
 
-Renomeacao
+Renomeacao ---
 ajuste de interface
 etc...
 '''
