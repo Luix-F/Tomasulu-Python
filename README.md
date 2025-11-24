@@ -75,8 +75,6 @@ IPC: Índice de Instruções por Ciclo (Eficiência do processador).
 - Luiz Fernando Antunes da Silva Frassi
 
 
-
-
-Desenvolvido como parte da disciplina de Arquitetura de Computadores.
+Desenvolvido como parte da disciplina de Arquitetura de Computadores III.
 
 Este projeto é para fins educacionais, simulando o comportamento lógico do hardware.
